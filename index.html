@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>かんたんPNG to WEBP変換ツール</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: "Hiragino Sans", "Meiryo", sans-serif;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+      color: #333;
+    }
+    h1 {
+      font-size: 24px;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #2c3e50;
+    }
+    .upload-area {
+      background-color: #f9f9f9;
+      border: 2px dashed #ddd;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      margin-bottom: 20px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .upload-area:hover {
+      background-color: #f0f0f0;
+      border-color: #aaa;
+    }
+    .upload-icon {
+      font-size: 40px;
+      margin-bottom: 10px;
+      color: #3498db;
+    }
+    .btn {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 0;
+      width: 100%;
+    }
+    .btn:hover {
+      background-color: #2980b9;
+    }
+    .result {
+      margin-top: 30px;
+      text-align: center;
+    }
+    .result img {
+      max-width: 100%;
+      max-height: 300px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    .info {
+      background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      font-size: 14px;
+    }
+    .hidden {
+      display: none;
+    }
+    .quality {
+      margin: 20px 0;
+    }
+    .quality-label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <h1>かんたんPNG to WEBP変換ツール</h1>
+  
+  <div class="upload-area" id="uploadArea">
+    <div class="upload-icon">📁</div>
+    <p>ここをクリックするか、PNGファイルをドラッグ＆ドロップしてください</p>
+  </div>
+  
+  <input type="file" id="fileInput" accept="image/png" class="hidden">
+  
+  <div class="quality">
+    <label class="quality-label">画質設定: <span id="qualityValue">75</span>%</label>
+    <input type="range" id="qualitySlider" min="1" max="100" value="75" style="width: 100%;">
+  </div>
+  
+  <div class="result hidden" id="resultArea">
+    <h2>変換結果</h2>
+    <img id="resultImage" src="" alt="変換された画像">
+    <div class="info">
+      <p>元のサイズ: <span id="originalSize">0</span> KB</p>
+      <p>変換後のサイズ: <span id="convertedSize">0</span> KB</p>
+      <p>削減率: <span id="savingRate">0</span>%</p>
+    </div>
+    <a id="downloadLink" class="btn" download="converted.webp">WEBPをダウンロード</a>
+  </div>
+  
+  <footer>
+    © 2025 かんたんPNG to WEBP変換ツール
+  </footer>
+  
+  <script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const resultArea = document.getElementById('resultArea');
+    const resultImage = document.getElementById('resultImage');
+    const downloadLink = document.getElementById('downloadLink');
+    const qualitySlider = document.getElementById('qualitySlider');
+    const qualityValue = document.getElementById('qualityValue');
+    const originalSize = document.getElementById('originalSize');
+    const convertedSize = document.getElementById('convertedSize');
+    const savingRate = document.getElementById('savingRate');
+    
+    let originalFile = null;
+    
+    // アップロードエリアのクリックでファイル選択
+    uploadArea.addEventListener('click', () => {
+      fileInput.click();
+    });
+    
+    // ファイル選択時の処理
+    fileInput.addEventListener('change', handleFile);
+    
+    // ドラッグ&ドロップの処理
+    uploadArea.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadArea.style.backgroundColor = '#eef7ff';
+    });
+    
+    uploadArea.addEventListener('dragleave', () => {
+      uploadArea.style.backgroundColor = '#f9f9f9';
+    });
+    
+    uploadArea.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadArea.style.backgroundColor = '#f9f9f9';
+      
+      if (e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.type === 'image/png') {
+          fileInput.files = e.dataTransfer.files;
+          handleFile({ target: fileInput });
+        } else {
+          alert('PNGファイルを選択してください');
+        }
+      }
+    });
+    
+    // 品質スライダーの変更時に再変換
+    qualitySlider.addEventListener('input', () => {
+      qualityValue.textContent = qualitySlider.value;
+      if (originalFile) {
+        convertImage(originalFile);
+      }
+    });
+    
+    function handleFile(e) {
+      if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        
+        if (file.type !== 'image/png') {
+          alert('PNGファイルを選択してください');
+          return;
+        }
+        
+        originalFile = file;
+        convertImage(file);
+      }
+    }
+    
+    function convertImage(file) {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        const img = new Image();
+        
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          ctx.drawImage(img, 0, 0);
+          
+          const quality = qualitySlider.value / 100;
+          const webpDataUrl = canvas.toDataURL('image/webp', quality);
+          
+          resultImage.src = webpDataUrl;
+          downloadLink.href = webpDataUrl;
+          
+          // ファイルサイズ計算
+          const origKB = Math.round(file.size / 1024 * 10) / 10;
+          originalSize.textContent = origKB;
+          
+          // WebPサイズ計算（Base64データから推定）
+          const base64 = webpDataUrl.split(',')[1];
+          const webpBytes = Math.ceil((base64.length * 3) / 4);
+          const webpKB = Math.round(webpBytes / 1024 * 10) / 10;
+          convertedSize.textContent = webpKB;
+          
+          // 削減率計算
+          const savePercent = Math.round((1 - (webpBytes / file.size)) * 100);
+          savingRate.textContent = savePercent;
+          
+          resultArea.classList.remove('hidden');
+        };
+        
+        img.src = e.target.result;
+      };
+      
+      reader.readAsDataURL(file);
+    }
+  </script>
+</body>
+</html>
